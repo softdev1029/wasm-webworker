@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+
+<html>
+
+  <head>
+
+    <meta charset="utf-8" />
+
+  </head>
+
+  <body>
+
+    <p>Elapsed: <output id="counter"></output></p>
+    <input type="button" value="Start Counter" onclick="OnClickStart();" />
+    <input type="button" value="Cancel" onclick="OnClickCancel();" />
+
+    <script type="text/javascript">
+
+      // Create a Web Worker (separate thread) that we'll pass the WebAssembly module to.
+
+      var g_WebWorker = new Worker("WebWorker.js");
+
+      g_WebWorker.onerror = function (evt) { console.log(`Error from Web Worker: ${evt.message}`); }
+
+      g_WebWorker.onmessage = function (evt) {
+          document.getElementById("counter").innerHTML = evt.data;
+      }
+
+      // Request the wasm file from the server and compile it...(Typically we would call
+
+      // 'WebAssembly.instantiate' which compiles and instantiates the module. In this
+
+      // case, however, we just want the compiled module which will be passed to the Web
+
+      // Worker. The Web Worker will be responsible for instantiating the module.)
+
+      fetch("test.wasm").then(response =>
+        {
+          console.log('fetched');
+          return response.arrayBuffer();
+        }
+      ).then(bytes =>
+
+        {
+            console.log('loaded bytes');
+            console.log(bytes)
+            return WebAssembly.compile(bytes);
+        }
+      ).then(WasmModule =>
+
+        {
+            console.log('compiled');
+            console.log(WasmModule)
+            g_WebWorker.postMessage({ "MessagePurpose": "CompiledModule", "WasmModule": WasmModule })
+        }
+
+      ).catch((reason) => {
+        console.log(reason);
+      });
+
+      function OnClickStart() {
+
+        // Ask the Web Worker to add two values
+
+        g_WebWorker.postMessage({ "MessagePurpose": "StartCounter" });
+
+      }
+
+      function OnClickCancel() {
+          console.log('click cancel');
+
+        g_WebWorker.postMessage({ "MessagePurpose": "StopCounter" });
+
+      }
+
+    </script>
+
+  </body>
+
+</html>
